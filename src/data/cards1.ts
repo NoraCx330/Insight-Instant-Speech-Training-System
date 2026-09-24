@@ -1,0 +1,208 @@
+import type { Card } from './types';
+
+// 56 张跨学科知识卡 · 八学科各七张
+export const CARDS: Card[] = [
+  // ───────────── 心理学 PSYCHOLOGY ─────────────
+  {
+    id: 1, numeral: 'I', discipline: 'PSY', glyph: 'iceberg',
+    titleZh: '确认偏误', titleEn: 'CONFIRMATION BIAS',
+    essence: '人会主动寻找、放大并记住支持自己既有信念的证据，而对反面证据视而不见。信念不是被证据塑造的，证据常被信念挑选。',
+    thinkPrompt: '回想一个你最近改变看法的瞬间——你是先看见反证，还是先愿意看见反证？',
+    keywords: ['信念', '证据', '选择性注意'],
+  },
+  {
+    id: 2, numeral: 'II', discipline: 'PSY', glyph: 'iceberg',
+    titleZh: '认知失调', titleEn: 'COGNITIVE DISSONANCE',
+    essence: '当行为与自我形象冲突时，人更常改变态度去迁就行为，而不是改变行为。于是我们为自己的选择编出一个更舒服的故事。',
+    thinkPrompt: '你有没有为一个已付出的代价，事后补上过一个「其实我本来就想要」的理由？',
+    keywords: ['自我辩护', '态度', '冲突'],
+  },
+  {
+    id: 3, numeral: 'III', discipline: 'PSY', glyph: 'ladder',
+    titleZh: '习得性无助', titleEn: 'LEARNED HELPLESSNESS',
+    essence: '反复经历不可控的失败后，人会在环境真的改变之后仍放弃尝试。困住人的有时不是现实的墙，而是对墙的记忆。',
+    thinkPrompt: '你生活中哪面「墙」可能已经不存在了，只是你还没有伸手去推？',
+    keywords: ['控制感', '放弃', '条件反射'],
+  },
+  {
+    id: 4, numeral: 'IV', discipline: 'PSY', glyph: 'mask',
+    titleZh: '邓宁-克鲁格效应', titleEn: 'DUNNING–KRUGER EFFECT',
+    essence: '能力越弱的人越容易高估自己，因为评估能力所需的元认知，恰恰是他们缺少的东西。无知比知识更容易产生自信。',
+    thinkPrompt: '在哪个领域你最自信？那份自信来自熟练，还是来自还没见过真正的高手？',
+    keywords: ['元认知', '自负', '能力'],
+  },
+  {
+    id: 5, numeral: 'V', discipline: 'PSY', glyph: 'anchor',
+    titleZh: '锚定效应', titleEn: 'ANCHORING EFFECT',
+    essence: '最先出现的数字会像锚一样固定后续判断，哪怕它与问题毫无关系。理性计算常在一个被偷偷设定的起点上展开。',
+    thinkPrompt: '你最近做的一个判断，起点数字是谁先放下去的？那个起点本身值得相信吗？',
+    keywords: ['判断', '参照点', '谈判'],
+  },
+  {
+    id: 6, numeral: 'VI', discipline: 'PSY', glyph: 'masks',
+    titleZh: '内在小孩', titleEn: 'INNER CHILD',
+    essence: '成年后的强烈情绪反应，常是旧日未被回应的经验借当下事件重现。此刻与你对话的，可能是一个更年幼的自己。',
+    thinkPrompt: '最近一次你反应过度的时刻，那个情绪的年龄大概是几岁？它当时想要什么？',
+    keywords: ['情绪记忆', '自我', '疗愈'],
+  },
+  {
+    id: 7, numeral: 'VII', discipline: 'PSY', glyph: 'scale',
+    titleZh: '心流', titleEn: 'FLOW STATE',
+    essence: '当挑战难度与个人技能恰好匹配，人会忘记时间与自我，行动与意识合为一体。幸福常是专注的副产品。',
+    thinkPrompt: '你上一次忘记时间，是在做什么？那件事里「挑战」与「技能」是如何咬合的？',
+    keywords: ['专注', '挑战', '幸福'],
+  },
+
+  // ───────────── 经济学 ECONOMICS ─────────────
+  {
+    id: 8, numeral: 'VIII', discipline: 'ECO', glyph: 'sunkship',
+    titleZh: '沉没成本谬误', titleEn: 'SUNK COST FALLACY',
+    essence: '已经付出且不可收回的成本不应影响未来决策，但人会因为「不甘心」而继续投入。理性只向前看，情感却向后结账。',
+    thinkPrompt: '你正在坚持的哪件事，如果今天才第一次遇到，你还会选择开始吗？',
+    keywords: ['决策', '放弃', '成本'],
+  },
+  {
+    id: 9, numeral: 'IX', discipline: 'ECO', glyph: 'opportunity',
+    titleZh: '机会成本', titleEn: 'OPPORTUNITY COST',
+    essence: '任何选择的真实代价，都是你因此放弃的那个最好的替代选项。免费的东西从不免费，账单由被放弃的可能性支付。',
+    thinkPrompt: '你最近一次「省下钱」的选择，花掉了什么更值钱的可能？',
+    keywords: ['取舍', '代价', '替代'],
+  },
+  {
+    id: 10, numeral: 'X', discipline: 'ECO', glyph: 'hand',
+    titleZh: '看不见的手', titleEn: 'THE INVISIBLE HAND',
+    essence: '无数自利个体在价格信号下自发协作，可能产生无人设计却高度有序的社会分工。秩序不必有一个设计者。',
+    thinkPrompt: '举出一个你身边「没有人统一安排，却运转良好」的秩序。它在什么情况下会失灵？',
+    keywords: ['市场', '自发秩序', '价格'],
+  },
+  {
+    id: 11, numeral: 'XI', discipline: 'ECO', glyph: 'scale',
+    titleZh: '比较优势', titleEn: 'COMPARATIVE ADVANTAGE',
+    essence: '即使你每件事都比别人强，双方仍应各自做机会成本最低的事并交换。专业化与贸易的收益来自相对，而非绝对。',
+    thinkPrompt: '你在团队里事事亲力亲为的那件事，交给略逊于你的人做，双方会各自省下什么？',
+    keywords: ['分工', '交换', '相对'],
+  },
+  {
+    id: 12, numeral: 'XII', discipline: 'ECO', glyph: 'circleArrows',
+    titleZh: '边际效用递减', titleEn: 'DIMINISHING MARGINAL UTILITY',
+    essence: '同一样东西拥有得越多，新增一单位带来的满足越少。第一口水救命，第十口水负担。价值随处境而非数量变化。',
+    thinkPrompt: '你正在大量投入的某样东西（时间、金钱、注意力），下一份投入的回报还值得吗？',
+    keywords: ['效用', '增量', '价值'],
+  },
+  {
+    id: 13, numeral: 'XIII', discipline: 'ECO', glyph: 'bellcurve',
+    titleZh: '囚徒困境', titleEn: 'PRISONER\u2019S DILEMMA',
+    essence: '当个体理性选择互相背叛，结果会比双方合作更差。个人最优的叠加，可以是集体最差。信任是这类困境的唯一出口。',
+    thinkPrompt: '你所处的一段关系或一个团队里，双方是否正因为「怕吃亏」而一起承受更差的结果？',
+    keywords: ['博弈', '信任', '合作'],
+  },
+  {
+    id: 14, numeral: 'XIV', discipline: 'ECO', glyph: 'candles',
+    titleZh: '稀缺', titleEn: 'SCARCITY MINDSET',
+    essence: '资源匮乏会占用心智带宽，迫使人专注眼前危机，却削弱长期规划。贫穷与忙碌不仅是状态，也是一种认知方式。',
+    thinkPrompt: '你最近「带宽」最满的那段时间，忽略了哪件长期重要的事？',
+    keywords: ['带宽', '短视', '匮乏'],
+  },
+
+  // ───────────── 政治学 POLITICS ─────────────
+  {
+    id: 15, numeral: 'XV', discipline: 'POL', glyph: 'scale',
+    titleZh: '权力制衡', titleEn: 'CHECKS & BALANCES',
+    essence: '把权力分成几份并让彼此能够否决，制度便不必依赖掌权者的美德。好制度假设人会滥用权力，并为此预先设防。',
+    thinkPrompt: '在你参与的组织里，谁能否决谁？如果答案是「没人能否决某人」，风险由谁承担？',
+    keywords: ['分权', '制度', '否决'],
+  },
+  {
+    id: 16, numeral: 'XVI', discipline: 'POL', glyph: 'contract',
+    titleZh: '社会契约', titleEn: 'SOCIAL CONTRACT',
+    essence: '政府的正当性来自被治者让渡部分自由以换取保护与秩序的默示同意。服从的义务与被保护的权利是同一份契约的两面。',
+    thinkPrompt: '你觉得你与所在集体之间那份「没有写下来的契约」，双方各自履行了吗？',
+    keywords: ['正当性', '同意', '让渡'],
+  },
+  {
+    id: 17, numeral: 'XVII', discipline: 'POL', glyph: 'eye',
+    titleZh: '全景敞视', titleEn: 'PANOPTICON',
+    essence: '当人相信自己随时可能被观看，便会自我规训，权力因此不必时刻在场。可见却无法确知的监视，比监视本身更有效。',
+    thinkPrompt: '你有哪些行为，只是因为「可能被看见」而改变，即使其实没有人在看？',
+    keywords: ['监视', '规训', '可见性'],
+  },
+  {
+    id: 18, numeral: 'XVIII', discipline: 'POL', glyph: 'pendulum',
+    titleZh: '钟摆与极端', titleEn: 'POLITICAL PENDULUM',
+    essence: '政治情绪常在压抑后向对立面猛烈回摆，回摆的幅度常大于问题本身。解决上一个极端的方式，有时是制造下一个极端。',
+    thinkPrompt: '你所反感的某种舆论，是不是上一轮被压制声音的迟到反弹？',
+    keywords: ['舆论', '周期', '反动'],
+  },
+  {
+    id: 19, numeral: 'XIX', discipline: 'POL', glyph: 'crowne',
+    titleZh: '权威合法性', titleEn: 'LEGITIMACY OF AUTHORITY',
+    essence: '权力让人服从靠的不只是暴力，还有传统、法理或个人魅力所赋予的信念。暴力可以逼出动作，只有合法性换来自愿。',
+    thinkPrompt: '你真心尊重的那位领导者，你的尊重来自他的职位、规则，还是他这个人？',
+    keywords: ['韦伯', '服从', '魅力型'],
+  },
+  {
+    id: 20, numeral: 'XX', discipline: 'POL', glyph: 'web',
+    titleZh: '软实力', titleEn: 'SOFT POWER',
+    essence: '让别人自愿想要你想要的东西，靠的是文化、价值与榜样的吸引力，而非武力与收买。最高明的影响让被影响者以为出于自己。',
+    thinkPrompt: '你被说服得最彻底的一次，对方用的是道理、压力，还是一个你想成为的样子？',
+    keywords: ['影响', '吸引', '文化'],
+  },
+  {
+    id: 21, numeral: 'XXI', discipline: 'POL', glyph: 'horseshoe',
+    titleZh: '马蹄铁效应', titleEn: 'HORSESHOE THEORY',
+    essence: '极端的两端在方法与气质上往往比它们各自与温和中间更相似：同样的敌人叙事、同样的纯洁要求、同样对妥协的蔑视。',
+    thinkPrompt: '你最反对的人与最支持你的人，在「如何对待异见者」这件事上动作是否一致？',
+    keywords: ['极端化', '极化', '手段'],
+  },
+
+  // ───────────── 社会学 SOCIOLOGY ─────────────
+  {
+    id: 22, numeral: 'XXII', discipline: 'SOC', glyph: 'stage',
+    titleZh: '拟剧理论', titleEn: 'DRAMATURGICAL THEORY',
+    essence: '社会生活像一座剧场：我们在前台按剧本表演，在后台卸妆松口气。自我不是一个内核，而是一组演出与观众管理。',
+    thinkPrompt: '你在哪些「观众」面前用的剧本最累？那个后台里的自己，多久没出场了？',
+    keywords: ['戈夫曼', '前台后台', '角色'],
+  },
+  {
+    id: 23, numeral: 'XXIII', discipline: 'SOC', glyph: 'cage',
+    titleZh: '铁笼', titleEn: 'THE IRON CAGE',
+    essence: '理性化与科层制带来效率，也把人关进规则、指标与分工的铁笼。现代社会的秩序不是暴君的压迫，而是表格的秩序。',
+    thinkPrompt: '你生活中哪条「一直就是这么走流程」的规则，已经没人记得它当初要解决什么？',
+    keywords: ['韦伯', '科层制', '理性化'],
+  },
+  {
+    id: 24, numeral: 'XXIV', discipline: 'SOC', glyph: 'target',
+    titleZh: '标签理论', titleEn: 'LABELING THEORY',
+    essence: '给人贴上的越轨标签会逐渐内化为其身份，起初只是一次行为，后来变成一种人。命名参与制造了被命名的现实。',
+    thinkPrompt: '你身上哪个标签（自己贴的或别人贴的）正在悄悄决定你的行为边界？',
+    keywords: ['越轨', '身份', '自我实现'],
+  },
+  {
+    id: 25, numeral: 'XXV', discipline: 'SOC', glyph: 'mountain',
+    titleZh: '马太效应', titleEn: 'MATTHEW EFFECT',
+    essence: '已有者被给予更多，未有者连仅有的也被拿走。优势与劣势都会复利，起点的微小差距会被时间放大成鸿沟。',
+    thinkPrompt: '你所在的领域里，哪些「奖励」其实只是对已有优势的再次追加？',
+    keywords: ['累积优势', '不平等', '复利'],
+  },
+  {
+    id: 26, numeral: 'XXVI', discipline: 'SOC', glyph: 'bubble',
+    titleZh: '信息茧房', titleEn: 'FILTER BUBBLE',
+    essence: '个性化推荐持续投其所好，使人误以为自己看到的共识就是世界的全貌。舒适的信息流最终变成看不见墙壁的房间。',
+    thinkPrompt: '如果让你说出「大家都怎么想」，你的证据来自几个真正不同的信息源？',
+    keywords: ['推荐算法', '共识', '圈层'],
+  },
+  {
+    id: 27, numeral: 'XXVII', discipline: 'SOC', glyph: 'peopleArrows',
+    titleZh: '群体极化', titleEn: 'GROUP POLARIZATION',
+    essence: '观点相近的人彼此交谈后，立场往往比交谈前更极端。讨论本应校正判断，群体内部的讨论却常给偏见踩下油门。',
+    thinkPrompt: '你最近一次在群聊里变得更激烈的立场，如果只和最聪明的反对者聊，还剩下几分？',
+    keywords: ['群体', '极端化', '回声室'],
+  },
+  {
+    id: 28, numeral: 'XXVIII', discipline: 'SOC', glyph: 'capital',
+    titleZh: '社会资本', titleEn: 'SOCIAL CAPITAL',
+    essence: '关系网络本身是一种资本：信任、人情与归属感能兑换机会与资源。你认识谁，部分决定了你能调动什么。',
+    thinkPrompt: '盘点你的「关系资产」，哪些账户你只在支取，很久没有存入？',
+    keywords: ['网络', '信任', '资源'],
+  },
+];

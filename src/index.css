@@ -1,21 +1,172 @@
+@import url('https://fonts.googleapis.cn/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Serif+SC:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #050505;
+  --surface: #0d0c0b;
+  --gold: #c9a45c;
+  --gold-bright: #e8ce96;
+  --gold-dim: #7a6538;
+  --parchment: #e9dfc8;
+  --text-dim: #8f8672;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--parchment);
+  font-family: 'Noto Serif SC', 'Cormorant Garamond', serif;
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% -10%, rgba(201, 164, 92, 0.12), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 50% 110%, rgba(201, 164, 92, 0.06), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+.font-display {
+  font-family: 'Cormorant Garamond', 'Noto Serif SC', serif;
+}
+
+.tracking-widest-xl {
+  letter-spacing: 0.38em;
+}
+
+/* 卡面暗纹：同心环 + 细放射线 */
+.card-engrave {
+  background-image:
+    radial-gradient(circle at 50% 42%, transparent 31%, rgba(201, 164, 92, 0.13) 31.4%, transparent 32%),
+    radial-gradient(circle at 50% 42%, transparent 41%, rgba(201, 164, 92, 0.09) 41.3%, transparent 42%),
+    repeating-conic-gradient(from 0deg at 50% 42%, rgba(201, 164, 92, 0.05) 0deg 1deg, transparent 1deg 12deg);
+}
+
+.card-back-pattern {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(201, 164, 92, 0.22) 0 14%, transparent 15%),
+    repeating-conic-gradient(from 0deg at 50% 50%, rgba(201, 164, 92, 0.14) 0deg 2deg, transparent 2deg 15deg),
+    linear-gradient(160deg, #15120c 0%, #0a0907 55%, #13100a 100%);
+}
+
+/* 金箔流光 */
+.gold-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.gold-sheen::after {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    rgba(232, 206, 150, 0.35) 50%,
+    transparent 58%
+  );
+  transform: translateX(-60%) rotate(8deg);
+  animation: sheen 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes sheen {
+  0%,
+  62% {
+    transform: translateX(-70%) rotate(8deg);
+  }
+  100% {
+    transform: translateX(70%) rotate(8deg);
+  }
+}
+
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+.animate-floaty {
+  animation: floaty 5s ease-in-out infinite;
+}
+
+.flip-3d {
+  transform-style: preserve-3d;
+}
+.flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+/* 细金边按钮 */
+.btn-gold {
+  border: 1px solid rgba(201, 164, 92, 0.55);
+  color: var(--gold-bright);
+  background: rgba(201, 164, 92, 0.04);
+  letter-spacing: 0.32em;
+  transition:
+    background 0.4s ease,
+    border-color 0.4s ease,
+    box-shadow 0.4s ease,
+    color 0.4s ease;
+}
+.btn-gold:hover:not(:disabled) {
+  background: rgba(201, 164, 92, 0.12);
+  border-color: rgba(232, 206, 150, 0.9);
+  box-shadow: 0 0 24px rgba(201, 164, 92, 0.25);
+  color: #f4e6c4;
+}
+.btn-gold:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(18, 17, 16, 0.9), rgba(10, 9, 8, 0.9));
+  border: 1px solid rgba(201, 164, 92, 0.22);
+}
+
+.hairline {
+  border-color: rgba(201, 164, 92, 0.22);
+}
+
+::selection {
+  background: rgba(201, 164, 92, 0.35);
+  color: #fff6e0;
+}
+
+textarea {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 164, 92, 0.4) transparent;
+}
+textarea::-webkit-scrollbar {
+  width: 6px;
+}
+textarea::-webkit-scrollbar-thumb {
+  background: rgba(201, 164, 92, 0.35);
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-floaty,
+  .gold-sheen::after {
+    animation: none;
+  }
 }
