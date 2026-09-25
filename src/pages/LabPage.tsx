@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ALL_CARDS, type Card } from '../data';
+import { ALL_CARDS, getCard, type Card } from '../data';
 import { TarotCardFace } from '../components/TarotCard';
 import { GoldParticles } from '../components/GoldParticles';
 import { useCountdown, formatTime } from '../engine/useCountdown';
@@ -11,8 +11,15 @@ import { useStore } from '../store/useStore';
 import type { ThinkingReport } from '../engine/report';
 
 const CHALLENGE_SECONDS = 90;
+const TIMER_KEY = 'insight-deck:v1:lab-timer';
+const SESSION_KEY = 'insight-deck:v1:lab-session';
 
 type Stage = 'ready' | 'speaking' | 'done';
+
+interface PersistedLabSession {
+  cardId: number;
+  transcript: string;
+}
 
 function randomCard(excludeId?: number): Card {
   let c = ALL_CARDS[Math.floor(Math.random() * ALL_CARDS.length)];
@@ -24,45 +31,137 @@ function randomCard(excludeId?: number): Card {
   return c;
 }
 
+function readSession(): PersistedLabSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as Partial<PersistedLabSession>;
+    if (typeof data.cardId !== 'number' || typeof data.transcript !== 'string') return null;
+    return { cardId: data.cardId, transcript: data.transcript };
+  } catch {
+    return null;
+  }
+}
+
+function writeSession(data: PersistedLabSession | null): void {
+  try {
+    if (data) localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    else localStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export function LabPage() {
   const { recordActivity } = useStore();
-  const [card, setCard] = useState<Card | null>(null);
-  const [stage, setStage] = useState<Stage>('ready');
-  const [transcript, setTranscript] = useState('');
+
+  // 仅在首渲染决定初始 stage / card / transcript
+  const init = useRef<{ stage: Stage; card: Card | null; transcript: string } | null>(null);
+  if (init.current === null) {
+    const persisted = readSession();
+    if (persisted) {
+      const c = getCard(persisted.cardId);
+      init.current = {
+        stage: 'speaking',
+        card: c ?? null,
+        transcript: persisted.transcript,
+      };
+    } else {
+      init.current = { stage: 'ready', card: null, transcript: '' };
+    }
+  }
+
+  const [card, setCard] = useState<Card | null>(init.current.card);
+  const [stage, setStage] = useState<Stage>(init.current.stage);
+  const [transcript, setTranscript] = useState<string>(init.current.transcript);
   const [particles, setParticles] = useState(false);
   const [report, setReport] = useState<ThinkingReport | null>(null);
+  const [speechLive, setSpeechLive] = useState(false);
+  const [notice, setNotice] = useState<string>('');
   const speechSupported = useMemo(() => isSpeechSupported(), []);
 
-  const finish = useMemo(() => () => {
-    setStage('done');
-    setParticles(true);
-    window.setTimeout(() => setParticles(false), 2200);
-  }, []);
+  const finish = useMemo(
+    () => () => {
+      setStage('done');
+      setSpeechLive(false);
+      setParticles(true);
+      window.setTimeout(() => setParticles(false), 2200);
+    },
+    [],
+  );
 
-  const timer = useCountdown(CHALLENGE_SECONDS, finish);
+  const timer = useCountdown(CHALLENGE_SECONDS, finish, TIMER_KEY);
+
+  // 恢复时，若计时器已 idle 但 session 存在（计时在关闭期间走完），进入 done
+  useEffect(() => {
+    if (stage === 'speaking' && timer.timerState === 'idle' && timer.remaining === 0) {
+      finish();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const session = useMemo(() => createSpeechSession(), []);
 
   useEffect(() => () => session.stop(), [session]);
 
-  const startChallenge = () => {
+  // 会话持久化（cardId/transcript 在 speaking 阶段同步保存）
+  useEffect(() => {
+    if (stage !== 'speaking' || !card) {
+      if (stage === 'done') writeSession(null);
+      return;
+    }
+    writeSession({ cardId: card.id, transcript });
+  }, [stage, card, transcript]);
+
+  const showNotice = (msg: string): void => {
+    setNotice(msg);
+    window.setTimeout(() => setNotice(''), 2400);
+  };
+
+  const startChallenge = (): void => {
     setReport(null);
     setTranscript('');
-    const c = randomCard(card?.id);
+    const c = card ?? randomCard();
     setCard(c);
     setStage('speaking');
     timer.reset(CHALLENGE_SECONDS);
     timer.start();
-    session.start(t => setTranscript(t));
+    if (speechSupported) {
+      session.start(t => setTranscript(t));
+      setSpeechLive(true);
+    }
   };
 
-  const stopEarly = () => {
+  const pauseChallenge = (): void => {
     session.stop();
+    setSpeechLive(false);
     timer.pause();
+    showNotice('TIME SUSPENDED · 计时已冻结');
+  };
+
+  const resumeChallenge = (): void => {
+    timer.resume();
+    if (speechSupported) {
+      session.start(t => setTranscript(t));
+      setSpeechLive(true);
+    }
+  };
+
+  const resetChallenge = (): void => {
+    session.stop();
+    setSpeechLive(false);
+    timer.reset(CHALLENGE_SECONDS);
+    showNotice('CLOCK RESTORED · 计时已回到 90 秒');
+  };
+
+  const stopEarly = (): void => {
+    session.stop();
+    setSpeechLive(false);
+    timer.reset();
     finish();
   };
 
-  const submit = () => {
+  const submit = (): void => {
     if (!card || transcript.trim().length < 20) return;
     const r = analyzeThinking({
       text: transcript,
@@ -71,6 +170,7 @@ export function LabPage() {
       kind: 'speak',
     });
     setReport(r);
+    writeSession(null);
     recordActivity('THINKING_LAB', [card.id], r.total);
   };
 
@@ -85,22 +185,52 @@ export function LabPage() {
       </p>
 
       {/* 计时器 */}
-      <div className={`mt-7 font-display text-5xl font-semibold tabular-nums transition-colors duration-500 ${timer.remaining <= 10 && stage === 'speaking' ? 'text-[#c98f5c]' : 'text-[#E8CE96]'}`}>
+      <div
+        className={`mt-7 font-display text-5xl font-semibold tabular-nums transition-colors duration-500 ${
+          timer.paused
+            ? 'text-[#C9A45C]'
+            : timer.remaining <= 10 && stage === 'speaking'
+              ? 'text-[#c98f5c]'
+              : 'text-[#E8CE96]'
+        }`}
+      >
         {formatTime(timer.remaining)}
       </div>
-      <div className="mt-3 h-[2px] w-64 bg-[#C9A45C]/15">
-        <motion.div className="h-full bg-gradient-to-r from-[#7A6538] to-[#E8CE96]" animate={{ width: `${progress * 100}%` }} transition={{ duration: 0.3 }} />
+      <p className="mt-2 h-4 text-[9px] uppercase tracking-[0.34em] text-[#C9A45C]">
+        {timer.paused ? '◈ PAUSED · 已暂停' : notice}
+      </p>
+      <div className="mt-1 h-[2px] w-64 bg-[#C9A45C]/15">
+        <motion.div
+          className="h-full bg-gradient-to-r from-[#7A6538] to-[#E8CE96]"
+          animate={{ width: `${progress * 100}%` }}
+          transition={{ duration: 0.3 }}
+        />
       </div>
 
-      <div className="mt-6 flex gap-4">
+      {/* 计时控制 */}
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         {stage !== 'speaking' ? (
           <button type="button" onClick={startChallenge} className="btn-gold px-9 py-3 text-[10px] uppercase">
-            {card ? 'DRAW ANOTHER & START' : 'DRAW A CARD & START'}
+            {card && stage === 'done' ? 'START AGAIN WITH SAME CARD' : 'DRAW A CARD & START'}
           </button>
         ) : (
-          <button type="button" onClick={stopEarly} className="btn-gold px-9 py-3 text-[10px] uppercase">
-            FINISH EARLY
-          </button>
+          <>
+            {timer.running ? (
+              <button type="button" onClick={pauseChallenge} className="btn-gold px-7 py-2.5 text-[10px] uppercase">
+                Pause
+              </button>
+            ) : (
+              <button type="button" onClick={resumeChallenge} className="btn-gold px-7 py-2.5 text-[10px] uppercase">
+                Resume
+              </button>
+            )}
+            <button type="button" onClick={resetChallenge} className="btn-line px-7 py-2.5 text-[10px] uppercase">
+              Reset
+            </button>
+            <button type="button" onClick={stopEarly} className="btn-line px-7 py-2.5 text-[10px] uppercase">
+              Finish Early
+            </button>
+          </>
         )}
       </div>
 
@@ -112,7 +242,11 @@ export function LabPage() {
             transition={{ duration: 0.7 }}
             className="mx-auto"
           >
-            <TarotCardFace card={card} size="lg" className={stage === 'speaking' ? 'animate-floaty' : ''} />
+            <TarotCardFace
+              card={card}
+              size="lg"
+              className={stage === 'speaking' && timer.running ? 'animate-floaty' : ''}
+            />
             <p className="mt-3 max-w-[300px] text-center text-[11px] leading-5 text-[#8F8672]">{card.thinkPrompt}</p>
           </motion.div>
         )}
@@ -122,7 +256,7 @@ export function LabPage() {
             <label htmlFor="lab-transcript" className="text-[10px] uppercase tracking-[0.32em] text-[#C9A45C]">
               {speechSupported ? 'LIVE TRANSCRIPT · 语音转写中' : 'MANUAL INPUT · 当前浏览器不支持转写'}
             </label>
-            {stage === 'speaking' && speechSupported && (
+            {speechLive && (
               <span className="flex items-center gap-2 text-[10px] text-[#C9A45C]">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#C9A45C]" /> REC
               </span>
@@ -133,13 +267,15 @@ export function LabPage() {
             value={transcript}
             onChange={e => setTranscript(e.target.value)}
             rows={9}
-            placeholder={stage === 'speaking'
-              ? '对着卡牌开口吧，文字会出现在这里（也可直接键入）……'
-              : '完成 90 秒表达后，内容会出现在这里，随后生成报告。'}
+            placeholder={
+              stage === 'speaking'
+                ? '对着卡牌开口吧，文字会出现在这里（也可直接键入）……'
+                : '完成 90 秒表达后，内容会出现在这里，随后生成报告。'
+            }
             className="mt-3 w-full resize-y border hairline bg-black/40 p-3.5 text-sm leading-7 text-[#E9DFC8] outline-none placeholder:text-[#5f5848] focus:border-[#C9A45C]/60"
           />
           <div className="mt-3 flex items-center justify-between">
-            <span className="text-[10px] text-[#7A6538]">
+            <span className="text-[0.62rem] text-[#7A6538]">
               {(transcript.match(/[\u4e00-\u9fa5]/g) ?? []).length} 字 · 完成挑战 +60 XP
             </span>
             <button
@@ -148,7 +284,7 @@ export function LabPage() {
               disabled={stage !== 'done' || transcript.trim().length < 20}
               className="btn-gold px-7 py-2.5 text-[10px] uppercase"
             >
-              GENERATE REPORT
+              Generate Report
             </button>
           </div>
         </div>

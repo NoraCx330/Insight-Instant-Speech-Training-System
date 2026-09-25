@@ -173,6 +173,27 @@ body {
   cursor: not-allowed;
 }
 
+.btn-line {
+  border: 1px solid rgba(201, 164, 92, 0.28);
+  color: var(--gold-dim);
+  background: transparent;
+  letter-spacing: 0.32em;
+  transition:
+    background 0.4s ease,
+    border-color 0.4s ease,
+    color 0.4s ease,
+    box-shadow 0.4s ease;
+}
+.btn-line:hover:not(:disabled) {
+  background: rgba(201, 164, 92, 0.06);
+  border-color: rgba(201, 164, 92, 0.55);
+  color: var(--gold);
+}
+.btn-line:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .panel {
   background: linear-gradient(180deg, rgba(18, 17, 16, 0.9), rgba(10, 9, 8, 0.9));
   border: 1px solid rgba(201, 164, 92, 0.22);
