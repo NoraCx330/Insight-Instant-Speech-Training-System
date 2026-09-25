@@ -72,6 +72,11 @@
 - 新增概念符号：在 `Glyph.tsx` 的 `GLYPHS` 中以 `name` 注册 100×100 viewBox 的线描节点，卡数据引用该 key。
 - 新增卡牌：向 `cards1/cards2` 追加对象（id 连续、罗马数字、glyph key 已存在、中英标题、要义、今日之问、关键词）。
 
+### Express × Vite 集成陷阱（勿再犯）
+- `server/vite.ts` 创建 Vite 实例时**不要** `import viteConfig from '../vite.config'` 再展开传入，也不要在 inline 配置里重复给 plugins。否则 Vite 仍会加载磁盘上的 `vite.config.ts`，`mergeConfig` 把两份 plugins 数组拼接，导致 `$RefreshReg$` / `$RefreshSig$` / `inWebWorker` 重复声明（esbuild Transform failed）。当前做法：只传 `root/server/appType`，配置全部交给配置文件。
+- 全局错误处理中间件必须 4 参数 `(err, req, res, next)`，3 参数会被 Express 当成普通中间件，报 `res.status is not a function`。
+- 修改 `server/*.ts` 后由 `tsx watch` 自动重启；若个别文件改动未触发重启，可对入口 `server.ts` 做无害编辑强制重启。
+
 ## 验收操作路径
 1. 首页点击 DRAW TODAY'S CARD，观察约 2–3s 洗牌→翻转→金色粒子序列，落于 `#/daily`。
 2. Daily 页点击卡牌可正反面翻转；写 ≥20 字反思 → REVEAL INSIGHT → 出现六维报告并增加 20 XP。

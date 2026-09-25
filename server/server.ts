@@ -1,5 +1,6 @@
 // ABOUTME: Express server with Vite integration
 // ABOUTME: Handles API routes and serves frontend in dev/prod modes
+// (restart marker: vite config integration fix)
 
 import { createServer, type Server } from 'http';
 import express from 'express';
@@ -37,7 +38,9 @@ async function startServer(): Promise<Server> {
   await setupVite(app);
 
   // 全局错误处理
-  app.use((err: Error, req: express.Request, res: express.Response) => {
+  app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    void req;
+    void next;
     console.error('Server error:', err);
     const status = 'status' in err ? (err as { status?: number }).status ?? 500 : 500;
     res.status(status).json({

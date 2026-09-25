@@ -6,7 +6,6 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
-import viteConfig from '../vite.config';
 
 const isDev = process.env.COZE_PROJECT_ENV !== 'PROD';
 
@@ -15,9 +14,12 @@ const isDev = process.env.COZE_PROJECT_ENV !== 'PROD';
  */
 export async function setupViteMiddleware(app: Application) {
   const vite = await createViteServer({
-    ...viteConfig,
+    // 配置由磁盘上的 vite.config.ts 提供（含 React 插件与 HMR 设置）。
+    // 切勿在此处再展开一份 import 的配置，否则 Vite 会同时加载配置文件与
+    // inline 配置，mergeConfig 会把插件数组拼接成两份，导致 react-refresh
+    // 的 $RefreshReg$ / $RefreshSig$ / inWebWorker 重复声明。
+    root: process.cwd(),
     server: {
-      ...viteConfig.server,
       middlewareMode: true,
     },
     appType: 'spa',
