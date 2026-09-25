@@ -8,12 +8,18 @@ import { analyzeThinking } from '../engine/report';
 import { ReportView } from '../components/ReportView';
 import { TimerDisplay } from '../components/TimerDisplay';
 import { createSpeechSession, isSpeechSupported } from '../engine/speech';
+import { playChime, unlockAudio } from '../engine/chime';
 import { useStore } from '../store/useStore';
 import type { ThinkingReport } from '../engine/report';
 
 type PhaseName = 'ready' | 'research' | 'reset' | 'express' | 'done';
 
 type ActivePhase = Exclude<PhaseName, 'ready' | 'done'>;
+
+// 阶段自动切换前的仪式停顿（ms）
+const INTERLUDE_MS = 4000;
+
+type InterludeKind = 'to-reset' | 'to-express' | null;
 
 interface PhaseMeta {
   seconds: number;
@@ -112,16 +118,27 @@ export function DeepThinkPage() {
   const [speechLive, setSpeechLive] = useState(false);
   const [speechUnavailable, setSpeechUnavailable] = useState(false);
   const [notice, setNotice] = useState<string>('');
+  const [interlude, setInterlude] = useState<InterludeKind>(null);
+  const interludeTimer = useRef<number | null>(null);
   const speechSupported = useMemo(() => isSpeechSupported(), []);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
+  const interludeRef = useRef<InterludeKind>(null);
+  interludeRef.current = interlude;
 
   const session = useMemo(() => createSpeechSession(), []);
-  useEffect(() => () => session.stop(), [session]);
+  useEffect(
+    () => () => {
+      session.stop();
+      if (interludeTimer.current !== null) window.clearTimeout(interludeTimer.current);
+    },
+    [session],
+  );
 
   const finishAll = (): void => {
     session.stop();
     setSpeechLive(false);
+    playChime(3);
     setPhase('done');
     setParticles(true);
     window.setTimeout(() => setParticles(false), 2400);
@@ -135,9 +152,9 @@ export function DeepThinkPage() {
     () => {
       const current = phaseRef.current;
       if (current === 'research') {
-        goResetRef.current();
+        enterInterlude('to-reset');
       } else if (current === 'reset') {
-        goExpressRef.current();
+        enterInterlude('to-express');
       } else if (current === 'express') {
         finishAll();
       }
@@ -160,6 +177,22 @@ export function DeepThinkPage() {
     setSpeechLive(true);
   };
 
+  // 自动倒计时结束：钟声 2 响 → 停顿过渡 → 开启下一阶段
+  const enterInterlude = (kind: Exclude<InterludeKind, null>): void => {
+    session.stop();
+    setSpeechLive(false);
+    playChime(2);
+    setInterlude(kind);
+    if (interludeTimer.current !== null) window.clearTimeout(interludeTimer.current);
+    interludeTimer.current = window.setTimeout(() => {
+      interludeTimer.current = null;
+      setInterlude(null);
+      if (kind === 'to-reset') goResetRef.current();
+      else goExpressRef.current();
+    }, INTERLUDE_MS);
+  };
+
+  // 手动提前进入：即时切换，不设停顿
   const goReset = (): void => {
     session.stop();
     setSpeechLive(false);
@@ -183,6 +216,7 @@ export function DeepThinkPage() {
   };
 
   const begin = (): void => {
+    unlockAudio();
     setReport(null);
     setNotes('');
     setSpeechText('');
@@ -282,6 +316,7 @@ export function DeepThinkPage() {
             total={timer.total}
             state={timer.timerState}
             label={currentMeta.en}
+            interlude={interlude !== null}
           />
           <div className="mt-4 h-[2px] w-64 mx-auto bg-[#C9A45C]/15">
             <motion.div
@@ -290,22 +325,53 @@ export function DeepThinkPage() {
             />
           </div>
 
-          {/* 计时控制 */}
+          {/* 计时控制：阶段过渡停顿时冻结，防止打断仪式 */}
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             {timer.running ? (
-              <button type="button" onClick={pausePhase} className="btn-gold px-6 py-2 text-[10px] uppercase">
+              <button
+                type="button"
+                onClick={pausePhase}
+                disabled={interlude !== null}
+                className="btn-gold px-6 py-2 text-[10px] uppercase disabled:cursor-not-allowed disabled:opacity-40"
+              >
                 Pause
               </button>
             ) : (
-              <button type="button" onClick={resumePhase} className="btn-gold px-6 py-2 text-[10px] uppercase">
+              <button
+                type="button"
+                onClick={resumePhase}
+                disabled={interlude !== null}
+                className="btn-gold px-6 py-2 text-[10px] uppercase disabled:cursor-not-allowed disabled:opacity-40"
+              >
                 Resume
               </button>
             )}
-            <button type="button" onClick={resetPhase} className="btn-line px-6 py-2 text-[10px] uppercase">
+            <button
+              type="button"
+              onClick={resetPhase}
+              disabled={interlude !== null}
+              className="btn-line px-6 py-2 text-[10px] uppercase disabled:cursor-not-allowed disabled:opacity-40"
+            >
               Reset Phase
             </button>
           </div>
-          {notice && <p className="mt-2 text-[9px] uppercase tracking-[0.3em] text-[#8F8672]">{notice}</p>}
+          {interlude && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 flex flex-col items-center gap-2"
+            >
+              <p className="text-[10px] uppercase tracking-[0.36em] text-[#E8CE96]">
+                {interlude === 'to-reset' ? '◈ 研究已尽 · 转入静默' : '◈ 静默已满 · 开口表达'}
+              </p>
+              <p className="text-[9px] uppercase tracking-[0.24em] text-[#7A6538]">
+                {interlude === 'to-reset' ? 'RESEARCH COMPLETE · PREPARING THE RESET' : 'RESET COMPLETE · PREPARING THE SPEAK'}
+              </p>
+            </motion.div>
+          )}
+          {!interlude && notice && (
+            <p className="mt-2 text-[9px] uppercase tracking-[0.3em] text-[#8F8672]">{notice}</p>
+          )}
         </div>
       )}
 
@@ -348,7 +414,15 @@ export function DeepThinkPage() {
                     className="mt-4 w-full resize-y border hairline bg-black/40 p-3.5 text-sm leading-7 text-[#E9DFC8] outline-none placeholder:text-[#5f5848] focus:border-[#C9A45C]/60"
                   />
                   <div className="mt-3 flex justify-end">
-                    <button type="button" onClick={goReset} className="btn-gold px-6 py-2 text-[10px] uppercase">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        unlockAudio();
+                        goReset();
+                      }}
+                      disabled={interlude !== null}
+                      className="btn-gold px-6 py-2 text-[10px] uppercase disabled:cursor-not-allowed disabled:opacity-40"
+                    >
                       Proceed To Reset
                     </button>
                   </div>
@@ -369,7 +443,15 @@ export function DeepThinkPage() {
                     <circle cx="30" cy="30" r="2.5" fill="currentColor" stroke="none" />
                   </motion.svg>
                   <p className="text-xs text-[#8F8672]">深呼吸，让刚才的研究沉下去。</p>
-                  <button type="button" onClick={goExpress} className="btn-gold px-6 py-2 text-[10px] uppercase">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      unlockAudio();
+                      goExpress();
+                    }}
+                    disabled={interlude !== null}
+                    className="btn-gold px-6 py-2 text-[10px] uppercase disabled:cursor-not-allowed disabled:opacity-40"
+                  >
                     Begin Expression
                   </button>
                 </div>
