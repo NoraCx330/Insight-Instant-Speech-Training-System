@@ -3,9 +3,10 @@ import { motion } from 'framer-motion';
 import { ALL_CARDS, getCard, type Card } from '../data';
 import { TarotCardFace } from '../components/TarotCard';
 import { GoldParticles } from '../components/GoldParticles';
-import { useCountdown, formatTime } from '../engine/useCountdown';
+import { useCountdown } from '../engine/useCountdown';
 import { analyzeThinking } from '../engine/report';
 import { ReportView } from '../components/ReportView';
+import { TimerDisplay } from '../components/TimerDisplay';
 import { createSpeechSession, isSpeechSupported } from '../engine/speech';
 import { useStore } from '../store/useStore';
 import type { ThinkingReport } from '../engine/report';
@@ -109,6 +110,7 @@ export function DeepThinkPage() {
   const [particles, setParticles] = useState(false);
   const [report, setReport] = useState<ThinkingReport | null>(null);
   const [speechLive, setSpeechLive] = useState(false);
+  const [speechUnavailable, setSpeechUnavailable] = useState(false);
   const [notice, setNotice] = useState<string>('');
   const speechSupported = useMemo(() => isSpeechSupported(), []);
   const phaseRef = useRef(phase);
@@ -143,23 +145,34 @@ export function DeepThinkPage() {
     TIMER_KEY,
   );
 
+  const startSpeech = (): void => {
+    if (!speechSupported || speechUnavailable) return;
+    session.start(
+      t => setSpeechText(t),
+      (info) => {
+        showNotice(info.message);
+        if (info.fatal) {
+          setSpeechLive(false);
+          setSpeechUnavailable(true);
+        }
+      },
+    );
+    setSpeechLive(true);
+  };
+
   const goReset = (): void => {
     session.stop();
     setSpeechLive(false);
     setPhase('reset');
-    timer.reset(PHASES.reset.seconds);
-    timer.start();
+    timer.start(PHASES.reset.seconds);
   };
 
   const goExpress = (): void => {
     setSpeechText('');
+    setSpeechUnavailable(false);
     setPhase('express');
-    timer.reset(PHASES.express.seconds);
-    timer.start();
-    if (speechSupported) {
-      session.start(t => setSpeechText(t));
-      setSpeechLive(true);
-    }
+    timer.start(PHASES.express.seconds);
+    startSpeech();
   };
   goResetRef.current = goReset;
   goExpressRef.current = goExpress;
@@ -173,11 +186,11 @@ export function DeepThinkPage() {
     setReport(null);
     setNotes('');
     setSpeechText('');
+    setSpeechUnavailable(false);
     const c = card ?? ALL_CARDS[Math.floor(Math.random() * ALL_CARDS.length)];
     setCard(c);
     setPhase('research');
-    timer.reset(PHASES.research.seconds);
-    timer.start();
+    timer.start(PHASES.research.seconds);
   };
 
   const pausePhase = (): void => {
@@ -189,10 +202,7 @@ export function DeepThinkPage() {
 
   const resumePhase = (): void => {
     timer.resume();
-    if (phaseRef.current === 'express' && speechSupported) {
-      session.start(t => setSpeechText(t));
-      setSpeechLive(true);
-    }
+    if (phaseRef.current === 'express') startSpeech();
   };
 
   const resetPhase = (): void => {
@@ -266,22 +276,14 @@ export function DeepThinkPage() {
       </div>
 
       {currentMeta && (
-        <div className="mt-6 flex flex-col items-center">
-          <p
-            className={`font-display text-4xl font-semibold tabular-nums transition-colors duration-500 ${
-              timer.paused
-                ? 'text-[#C9A45C]'
-                : timer.remaining <= 10
-                  ? 'text-[#c98f5c]'
-                  : 'text-[#E8CE96]'
-            }`}
-          >
-            {formatTime(timer.remaining)}
-          </p>
-          <p className="mt-2 h-4 text-[9px] uppercase tracking-[0.34em] text-[#C9A45C]">
-            {timer.paused ? '◈ PAUSED · 已暂停' : currentMeta.en}
-          </p>
-          <div className="mt-1 h-[2px] w-64 bg-[#C9A45C]/15">
+        <div className="mt-6">
+          <TimerDisplay
+            remaining={timer.remaining}
+            total={timer.total}
+            state={timer.timerState}
+            label={currentMeta.en}
+          />
+          <div className="mt-4 h-[2px] w-64 mx-auto bg-[#C9A45C]/15">
             <motion.div
               className="h-full bg-gradient-to-r from-[#7A6538] to-[#E8CE96]"
               animate={{ width: `${phaseProgress * 100}%` }}
@@ -377,7 +379,9 @@ export function DeepThinkPage() {
                 <>
                   <div className="mt-2 flex items-center justify-between">
                     <label htmlFor="deep-speech" className="text-[10px] uppercase tracking-[0.3em] text-[#C9A45C]">
-                      {speechSupported ? 'EXPRESSION · 语音转写' : 'EXPRESSION · 手动输入表达内容'}
+                      {speechSupported && !speechUnavailable
+                        ? 'EXPRESSION · 语音转写'
+                        : 'EXPRESSION · 手动输入表达内容'}
                     </label>
                     {speechLive && (
                       <span className="flex items-center gap-2 text-[10px] text-[#C9A45C]">

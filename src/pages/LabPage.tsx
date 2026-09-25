@@ -3,9 +3,10 @@ import { motion } from 'framer-motion';
 import { ALL_CARDS, getCard, type Card } from '../data';
 import { TarotCardFace } from '../components/TarotCard';
 import { GoldParticles } from '../components/GoldParticles';
-import { useCountdown, formatTime } from '../engine/useCountdown';
+import { useCountdown } from '../engine/useCountdown';
 import { analyzeThinking } from '../engine/report';
 import { ReportView } from '../components/ReportView';
+import { TimerDisplay } from '../components/TimerDisplay';
 import { createSpeechSession, isSpeechSupported } from '../engine/speech';
 import { useStore } from '../store/useStore';
 import type { ThinkingReport } from '../engine/report';
@@ -77,6 +78,7 @@ export function LabPage() {
   const [particles, setParticles] = useState(false);
   const [report, setReport] = useState<ThinkingReport | null>(null);
   const [speechLive, setSpeechLive] = useState(false);
+  const [speechUnavailable, setSpeechUnavailable] = useState(false);
   const [notice, setNotice] = useState<string>('');
   const speechSupported = useMemo(() => isSpeechSupported(), []);
 
@@ -118,18 +120,30 @@ export function LabPage() {
     window.setTimeout(() => setNotice(''), 2400);
   };
 
+  const startSpeech = (): void => {
+    if (!speechSupported) return;
+    session.start(
+      t => setTranscript(t),
+      (info) => {
+        showNotice(info.message);
+        if (info.fatal) {
+          setSpeechLive(false);
+          setSpeechUnavailable(true);
+        }
+      },
+    );
+    setSpeechLive(true);
+  };
+
   const startChallenge = (): void => {
     setReport(null);
     setTranscript('');
+    setSpeechUnavailable(false);
     const c = card ?? randomCard();
     setCard(c);
     setStage('speaking');
-    timer.reset(CHALLENGE_SECONDS);
-    timer.start();
-    if (speechSupported) {
-      session.start(t => setTranscript(t));
-      setSpeechLive(true);
-    }
+    timer.start(CHALLENGE_SECONDS);
+    startSpeech();
   };
 
   const pauseChallenge = (): void => {
@@ -141,10 +155,7 @@ export function LabPage() {
 
   const resumeChallenge = (): void => {
     timer.resume();
-    if (speechSupported) {
-      session.start(t => setTranscript(t));
-      setSpeechLive(true);
-    }
+    if (!speechUnavailable) startSpeech();
   };
 
   const resetChallenge = (): void => {
@@ -185,21 +196,15 @@ export function LabPage() {
       </p>
 
       {/* 计时器 */}
-      <div
-        className={`mt-7 font-display text-5xl font-semibold tabular-nums transition-colors duration-500 ${
-          timer.paused
-            ? 'text-[#C9A45C]'
-            : timer.remaining <= 10 && stage === 'speaking'
-              ? 'text-[#c98f5c]'
-              : 'text-[#E8CE96]'
-        }`}
-      >
-        {formatTime(timer.remaining)}
+      <div className="mt-7">
+        <TimerDisplay
+          remaining={timer.remaining}
+          total={CHALLENGE_SECONDS}
+          state={stage === 'speaking' ? timer.timerState : 'idle'}
+          label={notice}
+        />
       </div>
-      <p className="mt-2 h-4 text-[9px] uppercase tracking-[0.34em] text-[#C9A45C]">
-        {timer.paused ? '◈ PAUSED · 已暂停' : notice}
-      </p>
-      <div className="mt-1 h-[2px] w-64 bg-[#C9A45C]/15">
+      <div className="mt-3 h-[2px] w-64 bg-[#C9A45C]/15">
         <motion.div
           className="h-full bg-gradient-to-r from-[#7A6538] to-[#E8CE96]"
           animate={{ width: `${progress * 100}%` }}
@@ -254,7 +259,9 @@ export function LabPage() {
         <div className="panel w-full p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <label htmlFor="lab-transcript" className="text-[10px] uppercase tracking-[0.32em] text-[#C9A45C]">
-              {speechSupported ? 'LIVE TRANSCRIPT · 语音转写中' : 'MANUAL INPUT · 当前浏览器不支持转写'}
+              {!speechSupported || speechUnavailable
+                ? 'MANUAL INPUT · 手动输入模式'
+                : 'LIVE TRANSCRIPT · 语音转写中'}
             </label>
             {speechLive && (
               <span className="flex items-center gap-2 text-[10px] text-[#C9A45C]">
