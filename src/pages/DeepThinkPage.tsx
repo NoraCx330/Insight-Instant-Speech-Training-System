@@ -19,7 +19,7 @@ const PHASES: Record<Exclude<PhaseName, 'ready' | 'done'>, { seconds: number; zh
 };
 
 export function DeepThinkPage() {
-  const { recordActivity } = useStore();
+  const { recordActivity, markCardLit } = useStore();
   const [card, setCard] = useState<Card | null>(null);
   const [phase, setPhase] = useState<PhaseName>('ready');
   const [notes, setNotes] = useState('');
@@ -85,6 +85,8 @@ export function DeepThinkPage() {
     });
     setReport(r);
     recordActivity('DEEP_THINK', [card.id], r.total);
+    // 完成 3 分钟演讲模拟并进入反馈 → 点亮该卡牌的深度成就
+    markCardLit(card.id);
   };
 
   const currentMeta = phase === 'research' || phase === 'reset' || phase === 'express' ? PHASES[phase] : null;

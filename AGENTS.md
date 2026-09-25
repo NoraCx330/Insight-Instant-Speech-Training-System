@@ -59,7 +59,10 @@
 - 生产启动：`pnpm run start`
 
 ## 核心业务规则
-- **每日牌**：以当地日期 `YYYY-MM-DD` 为哈希种子选牌，同日固定、次日自动更换；记录 key 为 `insight-deck:v1`。
+- **每日牌**：以「当地日期 + scope + variant」FNV-1a 哈希确定性选牌，同日同范围结果固定、次日自动更换；记录 key 为 `insight-deck:v1`。
+- **抽卡范围**：`dailyScope`（ALL / PSY / ECO / POL / SOC / PHI / MPH / PPH / AIT）持久化；切换范围立即按 variant 0 重算今日之牌，不消耗重抽机会。
+- **每日重抽**：`redraw: {date, used}`，每天仅 1 次（REDRAW 按钮），在当前范围内取下一 variant 且不与当前牌重复；用后置灰，按日自动重置。
+- **成就点亮**：`litCardIds`；完成完整 Deep Think 并生成反馈（done 阶段 GENERATE THINKING REPORT）时点亮该卡牌。Archive 有独立成就面板（数量/百分比/进度条），点亮卡为金色呼吸辉光 + 星章徽章，未点亮为灰暗。
 - **XP**：DAILY 20 / CONNECT 40 / LAB 60 / DEEP 120 / TOPICS 30；等级 = `floor(xp/200)+1`。
 - **Streak**：当日首次活动时，若上次活动为昨日则 +1，否则归 1。
 - **六维评分**：概念准确度 / 跨学科联结 / 论证结构 / 例证具体性 / 语言表达 / 批判与原创；基于关键词命中、句数、连接词、例证、填充词、完成度等真实文本特征计算，同文本同结果（无随机性）。

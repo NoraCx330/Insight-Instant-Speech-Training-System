@@ -21,12 +21,15 @@ function getQueryCardId(): number | null {
 }
 
 export function ArchivePage() {
-  const { archive, xp, level, streak, resetAll } = useStore();
+  const { archive, xp, level, streak, resetAll, litCardIds } = useStore();
   const [filter, setFilter] = useState<ActivityKind | 'ALL'>('ALL');
   const [discipline, setDiscipline] = useState<Discipline | 'ALL'>('ALL');
   const [focusCardId, setFocusCardId] = useState<number | null>(getQueryCardId);
 
   const seenIds = useMemo(() => new Set(archive.flatMap(r => r.cardIds)), [archive]);
+  const litSet = useMemo(() => new Set(litCardIds), [litCardIds]);
+  const litCount = litCardIds.length;
+  const litPct = Math.round((litCount / ALL_CARDS.length) * 100);
 
   const filtered = useMemo(
     () => archive.filter(r => filter === 'ALL' || r.kind === filter),
@@ -64,6 +67,36 @@ export function ArchivePage() {
           </div>
         ))}
       </div>
+
+      {/* 成就：卡牌点亮 */}
+      <section className="panel relative mt-5 overflow-hidden p-5 sm:p-6">
+        <div className="pointer-events-none absolute inset-0 achievement-halo" aria-hidden="true" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.34em] text-[#C9A45C]">DEEP THINK ACHIEVEMENTS · 深度成就</p>
+            <p className="mt-2 font-display text-3xl font-semibold text-[#E8CE96]">
+              {litCount}<span className="text-lg text-[#8F8672]"> / {ALL_CARDS.length}</span>
+              <span className="ml-3 text-xs tracking-[0.2em] text-[#8F8672]">卡牌已点亮 · {litPct}%</span>
+            </p>
+            <p className="mt-2 text-[11px] leading-5 text-[#8F8672]">
+              对一张卡牌完成完整 Deep Think（5 分钟研究 → 30 秒重置 → 3 分钟演讲并生成反馈），该卡牌即被点亮。
+            </p>
+          </div>
+          <svg viewBox="0 0 40 40" className="h-14 w-14 shrink-0 text-[#C9A45C]" aria-hidden="true">
+            <circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+            <path d="M20 6 L23.2 15.2 L33 16 L25.4 22.2 L27.8 31.6 L20 26.6 L12.2 31.6 L14.6 22.2 L7 16 L16.8 15.2 Z"
+              fill="none" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+        </div>
+        <div className="relative mt-4 h-[3px] w-full bg-[#C9A45C]/12">
+          <motion.div
+            className="h-full bg-gradient-to-r from-[#7A6538] via-[#C9A45C] to-[#E8CE96]"
+            initial={{ width: 0 }}
+            animate={{ width: `${litPct}%` }}
+            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+          />
+        </div>
+      </section>
 
       {/* 训练记录 */}
       <section className="mt-10">
@@ -118,7 +151,9 @@ export function ArchivePage() {
       {/* 卡牌图鉴 */}
       <section className="mt-10">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm tracking-[0.3em] text-[#C9A45C]">CARD CODEX · 卡牌图鉴（{seenIds.size}/{ALL_CARDS.length} 已相遇）</h2>
+          <h2 className="text-sm tracking-[0.3em] text-[#C9A45C]">
+            CARD CODEX · 卡牌图鉴（{seenIds.size}/{ALL_CARDS.length} 已相遇 · {litCount} 已点亮）
+          </h2>
           <div className="flex flex-wrap gap-1.5">
             <button type="button" onClick={() => setDiscipline('ALL')} className={`border px-3 py-1 text-[9px] tracking-[0.18em] ${discipline === 'ALL' ? 'border-[#E8CE96] text-[#E8CE96]' : 'border-[#C9A45C]/25 text-[#8F8672]'}`}>
               全部
@@ -139,6 +174,7 @@ export function ArchivePage() {
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
           {gridCards.map(c => {
             const seen = seenIds.has(c.id);
+            const lit = litSet.has(c.id);
             return (
               <motion.button
                 key={c.id}
@@ -148,9 +184,27 @@ export function ArchivePage() {
                 whileHover={{ y: -5 }}
                 transition={{ duration: 0.35 }}
               >
-                <TarotCardFace card={c} size="md" className={seen ? '' : 'opacity-45 grayscale-[0.3]'} />
-                <span className={`text-[9px] tracking-[0.2em] ${seen ? 'text-[#C9A45C]' : 'text-[#5f5848]'}`}>
-                  {seen ? '已相遇' : '未相遇'}
+                <div className={`relative ${lit ? 'card-lit-wrap' : ''}`}>
+                  <TarotCardFace
+                    card={c}
+                    size="md"
+                    className={lit
+                      ? 'card-lit'
+                      : seen ? '' : 'opacity-40 grayscale-[0.35]'}
+                  />
+                  {lit && (
+                    <span className="pointer-events-none absolute -right-2 -top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-[#E8CE96] bg-[#0D0C0B] shadow-[0_0_14px_rgba(232,206,150,0.7)]">
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-[#E8CE96]" aria-hidden="true">
+                        <path d="M10 2 L12 7.5 L18 8 L13.3 11.7 L14.8 17.5 L10 14.3 L5.2 17.5 L6.7 11.7 L2 8 L8 7.5 Z"
+                          fill="currentColor" stroke="none" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[9px] tracking-[0.2em] ${
+                  lit ? 'text-[#E8CE96]' : seen ? 'text-[#C9A45C]' : 'text-[#5f5848]'
+                }`}>
+                  {lit ? '已点亮 · LIT' : seen ? '已相遇' : '未相遇'}
                 </span>
               </motion.button>
             );
@@ -173,10 +227,17 @@ export function ArchivePage() {
           >
             <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
               <TarotCardFace card={focusCard} size="md" />
-              <div className="flex-1">
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <p className="text-[9px] uppercase tracking-[0.3em] text-[#8F8672]">
                   {focusCard.numeral} · {DISCIPLINE_META[focusCard.discipline].en}
                 </p>
+                {litSet.has(focusCard.id) && (
+                  <span className="border border-[#E8CE96] bg-[#C9A45C]/10 px-2 py-0.5 text-[9px] uppercase tracking-[0.22em] text-[#E8CE96] shadow-[0_0_12px_rgba(232,206,150,0.4)]">
+                    LIT · 深度成就
+                  </span>
+                )}
+              </div>
                 <h3 className="mt-2 text-lg font-semibold text-[#E8CE96]">{focusCard.titleZh}</h3>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-[#8F8672]">{focusCard.titleEn}</p>
                 <p className="mt-3 text-xs leading-6 text-[#E9DFC8]">{focusCard.essence}</p>
