@@ -67,7 +67,8 @@
 - **Streak**：当日首次活动时，若上次活动为昨日则 +1，否则归 1。
 - **六维评分**：概念准确度 / 跨学科联结 / 论证结构 / 例证具体性 / 语言表达 / 批判与原创；基于关键词命中、句数、连接词、例证、填充词、完成度等真实文本特征计算，同文本同结果（无随机性）。
 - **计时**：Lab 90s；Deep Think 300s → 30s → 180s，阶段自动推进，也可手动提前进入。所有计时器均支持 PAUSE（冻结）/ RESUME（从冻结处继续）/ RESET（回到该阶段初始时长）；暂停时 Lab 与 Express 的语音转写同步停止，RESUME 时重新启动；阶段到 0 自动推进的逻辑不受影响。计时状态持久化（lab-timer/deep-timer + 对应 session 键），刷新后 running 按截止时间恢复（关闭期间走完则自动进入反馈），paused 冻结恢复。
-- **换阶段计时**：必须使用 `timer.start(新阶段秒数)`（内部 runId 自增强制重建驱动）；禁止 `reset(sec); start()` 连续调用——同批次状态更新下 effect 依赖不变，会沿用旧 interval / 旧时长，导致新阶段倒计时不走字。
+- **换阶段计时**：必须使用 `timer.start(新阶段秒数)`；禁止 `reset(sec); start()` 连续调用——同批次状态更新下 effect 依赖不变，会沿用旧 interval / 旧时长，导致新阶段倒计时不走字。
+- **计时驱动**：running 期间持有唯一一个 1s `setInterval`（ref 管理，start 时先清旧的再以新 deadline 重建），绝对截止时间 `deadlineRef` 为唯一真相源，每秒从它 `ceil` 出剩余并同步显示；所有状态走 ref，避免闭包陈旧值与 StrictMode 双 effect 重复定时器。已用 react-test-renderer 验证 00:03→00:02→00:01→00:00 逐秒递减与暂停冻结 / resume 继续。
 - **阶段过渡与钟声**：自动倒计时到点（非手动提前）先 `playChime(2)` 并进入 4s 过渡停顿（interlude），再开启下一阶段；最终 SPEAK 结束 `playChime(3)`。手动提前按钮即时切换不设停顿。钟声由 `engine/chime.ts` 用 Web Audio 合成（无音频文件），首次用户手势 `unlockAudio()` 解锁；TimerDisplay 停顿态显示「◈ ◈ ◈」。
 
 ## 编码规范

@@ -61,17 +61,18 @@ function writePersist(key: string, data: PersistedTimer | null): void {
 
 /**
  * 倒计时：暂停 / 继续 / 重置 / 换阶段重启。
- * start(sec) 可传入新阶段时长，内部以 runId 强制重建驱动，
- * 避免「reset + start 同批次、effect 不重建」导致的不走字。
+ * 实现：running 期间持有【唯一一个】1s setInterval（保存在 ref），
+ * 绝对截止时间 deadlineRef 为唯一真相源，每秒从它计算剩余并同步显示；
+ * start(sec) 换阶段时先清旧 interval 再以新 deadline 重建。
+ * 全部状态读写走 ref，避免闭包陈旧值与 StrictMode 双 effect 重复定时器。
  */
 export function useCountdown(
   initialSeconds: number,
   onEnd?: () => void,
   storageKey?: string,
 ): CountdownApi {
-  // 仅首渲染恢复持久化状态
-  const initial = useRef<{ remaining: number; state: TimerState; total: number } | null>(null);
-  if (initial.current === null) {
+  const init = useRef<{ remaining: number; state: TimerState; total: number } | null>(null);
+  if (init.current === null) {
     let remaining = initialSeconds;
     let state: TimerState = 'idle';
     let total = initialSeconds;
@@ -82,27 +83,46 @@ export function useCountdown(
         if (data.mode === 'running') {
           remaining = Math.ceil((data.value - Date.now()) / 1000);
           state = 'running';
-          if (remaining <= 0) remaining = 0;
+          if (remaining < 0) remaining = 0;
         } else {
           remaining = Math.max(0, Math.min(data.value, total));
           state = 'paused';
         }
       }
     }
-    initial.current = { remaining, state, total };
+    init.current = { remaining, state, total };
   }
 
-  const [remaining, setRemaining] = useState<number>(initial.current.remaining);
-  const [timerState, setTimerState] = useState<TimerState>(initial.current.state);
-  const [total, setTotal] = useState<number>(initial.current.total);
-  const [runId, setRunId] = useState<number>(0);
+  const [remaining, setRemaining] = useState<number>(init.current.remaining);
+  const [timerState, setTimerState] = useState<TimerState>(init.current.state);
+  const [total, setTotal] = useState<number>(init.current.total);
 
   const endRef = useRef(onEnd);
   endRef.current = onEnd;
-  const firedEndRef = useRef(false);
-  const deadlineRef = useRef<number>(0);
 
-  const persist = useCallback(
+  const deadlineRef = useRef<number>(0);
+  const totalRef = useRef<number>(init.current.total);
+  const stateRef = useRef<TimerState>(init.current.state);
+  const endedRef = useRef<boolean>(false);
+  const intervalRef = useRef<number | null>(null);
+
+  // 首渲染恢复 running 时从持久化带出 deadline
+  if (stateRef.current === 'running' && deadlineRef.current === 0 && storageKey) {
+    const data = readPersist(storageKey);
+    if (data && data.mode === 'running') {
+      totalRef.current = data.total;
+      deadlineRef.current = data.value;
+    }
+  }
+
+  const clearIntervalSafe = useCallback((): void => {
+    if (intervalRef.current !== null) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  const persistNow = useCallback(
     (mode: 'paused' | 'running' | null, rem: number, tot: number): void => {
       if (!storageKey) return;
       if (mode === null) {
@@ -119,93 +139,118 @@ export function useCountdown(
     [storageKey],
   );
 
-  // 驱动：running 且 runId 变化时重建；rem 为本轮起点
-  useEffect(() => {
-    if (timerState !== 'running') return;
-
-    // 恢复时已过期：触发一次 onEnd
-    if (remaining <= 0) {
-      if (!firedEndRef.current) {
-        firedEndRef.current = true;
-        setTimerState('idle');
-        persist(null, 0, total);
-        endRef.current?.();
-      }
+  // 每秒一拍的稳定函数（不依赖任何 state，身份恒定）
+  const tick = useCallback((): void => {
+    const next = Math.ceil((deadlineRef.current - Date.now()) / 1000);
+    if (next <= 0) {
+      if (endedRef.current) return;
+      endedRef.current = true;
+      clearIntervalSafe();
+      deadlineRef.current = 0;
+      stateRef.current = 'idle';
+      setRemaining(0);
+      setTimerState('idle');
+      persistNow(null, 0, totalRef.current);
+      endRef.current?.();
       return;
     }
+    setRemaining(next);
+  }, [clearIntervalSafe, persistNow]);
 
-    deadlineRef.current = Date.now() + remaining * 1000;
-    persist('running', remaining, total);
+  // 建立唯一 interval（先清旧的）
+  const startInterval = useCallback((): void => {
+    clearIntervalSafe();
+    intervalRef.current = window.setInterval(tick, 1000);
+  }, [clearIntervalSafe, tick]);
 
-    const id = window.setInterval(() => {
-      const next = Math.ceil((deadlineRef.current - Date.now()) / 1000);
-      if (next <= 0) {
-        window.clearInterval(id);
-        setRemaining(0);
-        setTimerState('idle');
-        firedEndRef.current = true;
-        persist(null, 0, total);
-        endRef.current?.();
-      } else {
-        setRemaining(next);
-      }
-    }, 250);
-    return () => window.clearInterval(id);
+  // 以 seconds 开始全新一轮
+  const beginRun = useCallback(
+    (seconds: number): void => {
+      endedRef.current = false;
+      totalRef.current = seconds;
+      deadlineRef.current = Date.now() + seconds * 1000;
+      stateRef.current = 'running';
+      setTotal(seconds);
+      setRemaining(seconds);
+      setTimerState('running');
+      persistNow('running', seconds, seconds);
+      startInterval();
+    },
+    [persistNow, startInterval],
+  );
+
+  // 挂载后若恢复为 running：沿用 deadline 继续；已过期则立即结束
+  useEffect(() => {
+    if (stateRef.current !== 'running') return undefined;
+    if (deadlineRef.current === 0) {
+      endedRef.current = true;
+      stateRef.current = 'idle';
+      setTimerState('idle');
+      return undefined;
+    }
+    const left = Math.ceil((deadlineRef.current - Date.now()) / 1000);
+    if (left <= 0) {
+      endedRef.current = true;
+      stateRef.current = 'idle';
+      setRemaining(0);
+      setTimerState('idle');
+      persistNow(null, 0, totalRef.current);
+      endRef.current?.();
+      return undefined;
+    }
+    setRemaining(left);
+    startInterval();
+    return clearIntervalSafe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState, runId]);
+  }, []);
 
   const start = useCallback(
     (sec?: number): void => {
-      const nextTotal = sec ?? initialSeconds;
-      firedEndRef.current = false;
-      setTotal(nextTotal);
-      setRemaining(nextTotal);
-      setTimerState('running');
-      setRunId((n) => n + 1);
+      beginRun(sec ?? initialSeconds);
     },
-    [initialSeconds],
+    [beginRun, initialSeconds],
   );
 
   const pause = useCallback((): void => {
-    setTimerState((cur) => {
-      if (cur !== 'running') return cur;
-      const rem = Math.max(
-        1,
-        Math.ceil((deadlineRef.current - Date.now()) / 1000),
-      );
-      setTotal((tot) => {
-        persist('paused', rem, tot);
-        return tot;
-      });
-      setRemaining(rem);
-      return 'paused';
-    });
-  }, [persist]);
+    if (stateRef.current !== 'running') return;
+    const rem = Math.max(1, Math.ceil((deadlineRef.current - Date.now()) / 1000));
+    clearIntervalSafe();
+    stateRef.current = 'paused';
+    setRemaining(rem);
+    setTimerState('paused');
+    persistNow('paused', rem, totalRef.current);
+  }, [clearIntervalSafe, persistNow]);
 
   const resume = useCallback((): void => {
-    setTimerState((cur) => {
-      if (cur !== 'paused') return cur;
-      firedEndRef.current = false;
-      setRunId((n) => n + 1);
-      return 'running';
-    });
-  }, []);
+    if (stateRef.current !== 'paused') return;
+    const startRem = remaining > 0 ? remaining : totalRef.current;
+    endedRef.current = false;
+    deadlineRef.current = Date.now() + startRem * 1000;
+    stateRef.current = 'running';
+    setTimerState('running');
+    persistNow('running', startRem, totalRef.current);
+    startInterval();
+  }, [clearIntervalSafe, persistNow, remaining, startInterval]);
 
   const toggle = useCallback((): void => {
-    if (timerState === 'running') pause();
-    else if (timerState === 'paused') resume();
-  }, [timerState, pause, resume]);
+    if (stateRef.current === 'running') pause();
+    else if (stateRef.current === 'paused') resume();
+  }, [pause, resume]);
 
   const reset = useCallback(
     (sec?: number): void => {
       const nextTotal = sec ?? initialSeconds;
-      firedEndRef.current = false;
+      clearIntervalSafe();
+      endedRef.current = false;
+      deadlineRef.current = 0;
+      stateRef.current = 'idle';
       setTimerState('idle');
       setRemaining(nextTotal);
       setTotal(nextTotal);
-      persist(null, nextTotal, nextTotal);
+      totalRef.current = nextTotal;
+      persistNow(null, nextTotal, nextTotal);
     },
-    [initialSeconds, persist],
+    [clearIntervalSafe, initialSeconds, persistNow],
   );
 
   return {
